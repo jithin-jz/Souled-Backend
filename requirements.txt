@@ -1,0 +1,6 @@
+djangorestframework
+djangorestframework-simplejwt
+python-dotenv
+psycopg2-binary # if you use Postgres
+google-auth
+django-cors-headers
