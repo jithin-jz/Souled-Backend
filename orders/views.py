@@ -1,0 +1,182 @@
+import stripe
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from .models import Order, OrderItem
+from .serializers import AddressSerializer
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+# ======================================================================
+# CREATE ORDER (COD / STRIPE)
+# ======================================================================
+class CreateOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        cart = request.data.get("cart")
+        address_data = request.data.get("address")
+        payment_method = request.data.get("payment_method", "").lower()
+
+        # Validate cart
+        if not cart or not isinstance(cart, list):
+            return Response({"error": "Cart is empty or invalid"}, status=400)
+
+        if payment_method not in ("cod", "stripe"):
+            return Response({"error": "Invalid payment method"}, status=400)
+
+        # Save Address
+        serializer = AddressSerializer(
+            data=address_data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        address = serializer.save()
+
+        # Calculate total
+        try:
+            total_amount = sum(
+                float(i["price"]) * int(i["quantity"]) for i in cart
+            )
+        except (KeyError, ValueError):
+            return Response({"error": "Invalid cart format"}, status=400)
+
+        # Create Order
+        order = Order.objects.create(
+            user=user,
+            address=address,
+            payment_method=payment_method,
+            total_amount=total_amount,
+            status="pending",
+        )
+
+        # Create Order Items
+        for item in cart:
+            OrderItem.objects.create(
+                order=order,
+                product_id=item["id"],
+                quantity=int(item["quantity"]),
+                price=float(item["price"]),
+            )
+
+        # ==================================================================
+        # COD — return immediately
+        # ==================================================================
+        if payment_method == "cod":
+            order.status = "processing"
+            order.save()
+            return Response(
+                {
+                    "message": "COD order placed",
+                    "order_id": order.id
+                },
+                status=200,
+            )
+
+        # ==================================================================
+        # STRIPE
+        # ==================================================================
+        try:
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                payment_method_types=["card"],
+                metadata={"order_id": order.id},
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": "inr",
+                            "product_data": {"name": item["name"]},
+                            "unit_amount": int(float(item["price"]) * 100),
+                        },
+                        "quantity": int(item["quantity"]),
+                    }
+                    for item in cart
+                ],
+                success_url=f"{settings.FRONTEND_URL}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{settings.FRONTEND_URL}/payment",
+            )
+        except Exception as e:
+            order.status = "failed"
+            order.save()
+            return Response({"error": str(e)}, status=500)
+
+        order.stripe_session_id = session.id
+        order.save()
+
+        return Response({"checkout_url": session.url}, status=200)
+
+
+# ======================================================================
+# VERIFY PAYMENT — frontend check (optional but useful)
+# ======================================================================
+class VerifyPaymentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        session_id = request.query_params.get("session_id")
+
+        if not session_id:
+            return Response({"error": "Missing session_id"}, status=400)
+
+        # Fetch session from Stripe
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+        except Exception:
+            return Response({"error": "Invalid session_id"}, status=400)
+
+        order_id = session.get("metadata", {}).get("order_id")
+
+        if not order_id:
+            return Response({"error": "Order metadata missing"}, status=400)
+
+        # Check order belongs to logged-in user
+        try:
+            order = Order.objects.get(id=order_id, user=request.user)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=404)
+
+        return Response({
+            "order_id": order.id,
+            "status": order.status,
+        })
+
+
+# ======================================================================
+# STRIPE WEBHOOK (server → server)
+# ======================================================================
+@method_decorator(csrf_exempt, name="dispatch")
+class StripeWebhookAPIView(APIView):
+
+    def post(self, request):
+        payload = request.body
+        signature = request.headers.get("stripe-signature")
+
+        # Validate Stripe signature
+        try:
+            event = stripe.Webhook.construct_event(
+                payload,
+                signature,
+                settings.STRIPE_WEBHOOK_SECRET
+            )
+        except stripe.error.SignatureVerificationError:
+            return Response({"error": "Invalid signature"}, status=400)
+        except Exception:
+            return Response({"error": "Invalid payload"}, status=400)
+
+        # Payment completed
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            order_id = session["metadata"].get("order_id")
+
+            if order_id:
+                Order.objects.filter(id=order_id).update(status="paid")
+
+        return Response({"status": "success"}, status=200)

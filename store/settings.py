@@ -10,10 +10,17 @@ import cloudinary
 # Base / Env
 # -------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+env_path = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is missing in .env")
+
 DEBUG = os.getenv("DEBUG", "False") == "True"
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 
 # -------------------------------------------------------------
@@ -36,6 +43,7 @@ INSTALLED_APPS = [
     "accounts",
     "products",
     "cart",
+    "orders",
 ]
 
 # -------------------------------------------------------------
@@ -77,16 +85,20 @@ WSGI_APPLICATION = "store.wsgi.application"
 # -------------------------------------------------------------
 # Database
 # -------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is missing in .env")
+
 DATABASES = {
     "default": dj_database_url.parse(
-        os.getenv("DATABASE_URL"),
+        DATABASE_URL,
         conn_max_age=600,
-        ssl_require=True,
+        ssl_require=True
     )
 }
 
 # -------------------------------------------------------------
-# Auth / User
+# Authentication
 # -------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.User"
 
@@ -98,7 +110,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # -------------------------------------------------------------
-# DRF + Cookie JWT Auth
+# DRF / JWT Cookie Auth
 # -------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -106,32 +118,24 @@ REST_FRAMEWORK = {
     ]
 }
 
-# -------------------------------------------------------------
-# SimpleJWT (Cookies)
-# -------------------------------------------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-
     "AUTH_HEADER_TYPES": ("Bearer",),
 
-    # Cookies must be cross-site (5173 → 8000)
-    "AUTH_COOKIE_SECURE": False,       # True on production HTTPS
-    "AUTH_COOKIE_SAMESITE": "None",    # REQUIRED FOR CROSS-ORIGIN COOKIES
+    "AUTH_COOKIE_SECURE": False,      # True in production HTTPS
+    "AUTH_COOKIE_SAMESITE": "None",   # Important for cross-origin cookies
 }
 
 # -------------------------------------------------------------
-# CORS + CSRF (Frontend: localhost:5173)
+# CORS / CSRF
 # -------------------------------------------------------------
+FRONTEND_URL = "http://localhost:5173"
+
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-]
+CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
 
 CORS_ALLOW_HEADERS = [
     "content-type",
@@ -142,26 +146,45 @@ CORS_ALLOW_HEADERS = [
 # -------------------------------------------------------------
 # Static / Media
 # -------------------------------------------------------------
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------
 # Cloudinary
 # -------------------------------------------------------------
+cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+api_key = os.getenv("CLOUDINARY_API_KEY")
+api_secret = os.getenv("CLOUDINARY_API_SECRET")
+
+if not cloud_name or not api_key or not api_secret:
+    raise RuntimeError("Cloudinary credentials missing in .env")
+
 CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
-    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
+    "CLOUD_NAME": cloud_name,
+    "API_KEY": api_key,
+    "API_SECRET": api_secret,
 }
 
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-    secure=True
+    cloud_name=cloud_name,
+    api_key=api_key,
+    api_secret=api_secret,
+    secure=True,
 )
 
 MEDIA_URL = "/media/"
+
+# -------------------------------------------------------------
+# Stripe
+# -------------------------------------------------------------
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+if not STRIPE_SECRET_KEY:
+    raise RuntimeError("STRIPE_SECRET_KEY missing")
+if not STRIPE_WEBHOOK_SECRET:
+    raise RuntimeError("STRIPE_WEBHOOK_SECRET missing")
