@@ -1,31 +1,31 @@
 from pathlib import Path
 import os
 from datetime import timedelta
-
 from dotenv import load_dotenv
 import dj_database_url
 import cloudinary
 
-# -------------------------------------------------------------
-# Base / Env
-# -------------------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env_path = os.path.join(BASE_DIR, ".env")
-if os.path.exists(env_path):
+env_path = BASE_DIR / ".env"
+if env_path.exists():
     load_dotenv(env_path)
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY is missing in .env")
+    raise RuntimeError("SECRET_KEY missing")
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
-# -------------------------------------------------------------
-# Installed apps
-# -------------------------------------------------------------
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "rest_framework",
+    "rest_framework_simplejwt",
     "corsheaders",
 
     "cloudinary",
@@ -46,25 +47,24 @@ INSTALLED_APPS = [
     "orders",
 ]
 
-# -------------------------------------------------------------
-# Middleware
-# -------------------------------------------------------------
+
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+
     "django.middleware.csrf.CsrfViewMiddleware",
+
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
 ROOT_URLCONF = "store.urls"
 
-# -------------------------------------------------------------
-# Templates
-# -------------------------------------------------------------
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -80,27 +80,25 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = "store.wsgi.application"
 
-# -------------------------------------------------------------
-# Database
-# -------------------------------------------------------------
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is missing in .env")
+    raise RuntimeError("DATABASE_URL missing")
 
 DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=True,
     )
 }
 
-# -------------------------------------------------------------
-# Authentication
-# -------------------------------------------------------------
+
 AUTH_USER_MODEL = "accounts.User"
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -109,56 +107,50 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# -------------------------------------------------------------
-# DRF / JWT Cookie Auth
-# -------------------------------------------------------------
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "accounts.authentication.CookieJWTAuthentication",
     ]
 }
 
+
+# === JWT + Cookie Auth ===
+SECURE_COOKIES = not DEBUG  # auto secure for production
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
-
-    "AUTH_COOKIE_SECURE": False,      # True in production HTTPS
-    "AUTH_COOKIE_SAMESITE": "None",   # Important for cross-origin cookies
+    "AUTH_COOKIE": "access",
+    "AUTH_COOKIE_REFRESH": "refresh",
 }
 
-# -------------------------------------------------------------
-# CORS / CSRF
-# -------------------------------------------------------------
-FRONTEND_URL = "http://localhost:5173"
+
+# === CORS + CSRF ===
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
-
 CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
 
-CORS_ALLOW_HEADERS = [
-    "content-type",
-    "authorization",
-    "x-csrftoken",
-]
+CSRF_COOKIE_HTTPONLY = False       # CRUCIAL — frontend must read csrftoken
+CSRF_COOKIE_NAME = "csrftoken"
+X_FRAME_OPTIONS = "DENY"
 
-# -------------------------------------------------------------
-# Static / Media
-# -------------------------------------------------------------
+
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# -------------------------------------------------------------
-# Cloudinary
-# -------------------------------------------------------------
+
 cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
 api_key = os.getenv("CLOUDINARY_API_KEY")
 api_secret = os.getenv("CLOUDINARY_API_SECRET")
 
 if not cloud_name or not api_key or not api_secret:
-    raise RuntimeError("Cloudinary credentials missing in .env")
+    raise RuntimeError("Cloudinary credentials missing")
 
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": cloud_name,
@@ -177,14 +169,24 @@ cloudinary.config(
 
 MEDIA_URL = "/media/"
 
-# -------------------------------------------------------------
-# Stripe
-# -------------------------------------------------------------
+
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
-if not STRIPE_SECRET_KEY:
-    raise RuntimeError("STRIPE_SECRET_KEY missing")
-if not STRIPE_WEBHOOK_SECRET:
-    raise RuntimeError("STRIPE_WEBHOOK_SECRET missing")
+if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
+    raise RuntimeError("Stripe keys missing")
+
+
+# === Local Cookie Security ===
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+}

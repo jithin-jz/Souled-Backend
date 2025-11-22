@@ -1,16 +1,46 @@
+from django.conf import settings
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.authentication import CSRFCheck
+from rest_framework import exceptions
+
+# Will look in settings.SIMPLE_JWT["AUTH_COOKIE"], fallback to "access"
+AUTH_COOKIE_KEY = getattr(settings, "SIMPLE_JWT", {}).get("AUTH_COOKIE", "access")
+REFRESH_COOKIE_KEY = getattr(settings, "SIMPLE_JWT", {}).get("AUTH_COOKIE_REFRESH", "refresh")
+
+SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+CSRF_PROTECTED_METHODS = ("POST", "PUT", "PATCH", "DELETE")
+
+
+def enforce_csrf(request):
+    """
+    Proper CSRF validation using DRF's CSRFCheck wrapper.
+    """
+    check = CSRFCheck(lambda r: None)
+    check.process_request(request)
+    reason = check.process_view(request, None, (), {})
+
+    if reason:
+        raise exceptions.PermissionDenied(f"CSRF Failed: {reason}")
+
 
 class CookieJWTAuthentication(JWTAuthentication):
+    """
+    Authentication class that reads the JWT access token from an HTTP only cookie.
+    Works with SimpleJWT.
+    """
     def authenticate(self, request):
-        token = request.COOKIES.get("access")
-
-        if not token:
+        token = request.COOKIES.get(AUTH_COOKIE_KEY)
+        if token is None:
             return None
+
+        if request.method in CSRF_PROTECTED_METHODS:
+            enforce_csrf(request)
 
         try:
-            validated = self.get_validated_token(token)
+            validated_token = self.get_validated_token(token)
         except Exception:
+            # Invalid or expired token
             return None
 
-        user = self.get_user(validated)
-        return (user, validated)
+        user = self.get_user(validated_token)
+        return user, validated_token
