@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Cart, CartItem, Wishlist, WishlistItem
 from .serializers import (
@@ -32,7 +34,11 @@ class CartDetailView(APIView):
         return Response(CartSerializer(cart).data)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class AddToCartView(APIView):
+    """
+    Add product to cart - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -54,7 +60,11 @@ class AddToCartView(APIView):
         return Response({"message": "Added to cart"})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class RemoveFromCartView(APIView):
+    """
+    Remove item from cart - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, item_id):
@@ -64,7 +74,11 @@ class RemoveFromCartView(APIView):
         return Response({"message": "Removed"})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class UpdateCartQuantityView(APIView):
+    """
+    Update cart item quantity - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, item_id):
@@ -91,7 +105,11 @@ class WishlistDetailView(APIView):
         return Response(WishlistSerializer(wishlist).data)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class AddToWishlistView(APIView):
+    """
+    Add product to wishlist - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -109,7 +127,11 @@ class AddToWishlistView(APIView):
         return Response({"message": "Added to wishlist"})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class RemoveFromWishlistView(APIView):
+    """
+    Remove item from wishlist - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, item_id):

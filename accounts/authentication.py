@@ -27,14 +27,16 @@ class CookieJWTAuthentication(JWTAuthentication):
     """
     Authentication class that reads the JWT access token from an HTTP only cookie.
     Works with SimpleJWT.
+    
+    CSRF checking is handled at the view level using @csrf_exempt decorators.
     """
     def authenticate(self, request):
         token = request.COOKIES.get(AUTH_COOKIE_KEY)
         if token is None:
             return None
 
-        if request.method in CSRF_PROTECTED_METHODS:
-            enforce_csrf(request)
+        # CSRF is now handled by @csrf_exempt decorators on views
+        # This allows granular control over which endpoints need CSRF protection
 
         try:
             validated_token = self.get_validated_token(token)

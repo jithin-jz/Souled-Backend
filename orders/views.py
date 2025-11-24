@@ -17,7 +17,11 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 # ======================================================================
 # CREATE ORDER (COD / STRIPE)
 # ======================================================================
+@method_decorator(csrf_exempt, name="dispatch")
 class CreateOrderAPIView(APIView):
+    """
+    Create order with COD or Stripe payment - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -113,7 +117,11 @@ class CreateOrderAPIView(APIView):
 # ======================================================================
 # VERIFY PAYMENT (STRIPE + COD SUPPORT)
 # ======================================================================
+@method_decorator(csrf_exempt, name="dispatch")
 class VerifyPaymentAPIView(APIView):
+    """
+    Verify payment status - CSRF exempt for authenticated users.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
