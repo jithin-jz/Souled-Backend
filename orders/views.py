@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, Address
 from .serializers import AddressSerializer, OrderSerializer
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -28,6 +28,7 @@ class CreateOrderAPIView(APIView):
         user = request.user
         cart = request.data.get("cart")
         address_data = request.data.get("address")
+        address_id = request.data.get("address_id")  # NEW: Accept saved address ID
         payment_method = request.data.get("payment_method", "").lower()
 
         # Validate cart
@@ -36,13 +37,23 @@ class CreateOrderAPIView(APIView):
         if payment_method not in ("cod", "stripe"):
             return Response({"error": "Invalid payment method"}, status=400)
 
-        # Save Address
-        serializer = AddressSerializer(
-            data=address_data,
-            context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        address = serializer.save()
+        # Handle Address - either use existing or create new
+        if address_id:
+            # Use existing saved address
+            try:
+                address = Address.objects.get(id=address_id, user=user)
+            except Address.DoesNotExist:
+                return Response({"error": "Address not found"}, status=404)
+        elif address_data:
+            # Create new address
+            serializer = AddressSerializer(
+                data=address_data,
+                context={"request": request}
+            )
+            serializer.is_valid(raise_exception=True)
+            address = serializer.save()
+        else:
+            return Response({"error": "Address is required"}, status=400)
 
         # Calculate total
         try:
