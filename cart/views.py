@@ -2,8 +2,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 
 from .models import Cart, CartItem, Wishlist, WishlistItem
 from .serializers import (
@@ -34,10 +32,9 @@ class CartDetailView(APIView):
         return Response(CartSerializer(cart).data)
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class AddToCartView(APIView):
     """
-    Add product to cart - CSRF exempt for authenticated users.
+    Add product to cart.
     """
     permission_classes = [IsAuthenticated]
 
@@ -49,10 +46,24 @@ class AddToCartView(APIView):
         product = get_object_or_404(Product, id=serializer.validated_data["product_id"])
         quantity = serializer.validated_data["quantity"]
 
+        # Check stock availability
+        if product.stock < quantity:
+            return Response(
+                {"error": f"Only {product.stock} item(s) available in stock."},
+                status=400
+            )
+        
+        # Check if adding to existing cart item would exceed stock
         item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-
+        
         if not created:
-            item.quantity += quantity
+            new_quantity = item.quantity + quantity
+            if product.stock < new_quantity:
+                return Response(
+                    {"error": f"Cannot add {quantity} more. Only {product.stock - item.quantity} item(s) available."},
+                    status=400
+                )
+            item.quantity = new_quantity
         else:
             item.quantity = quantity
 
@@ -60,10 +71,9 @@ class AddToCartView(APIView):
         return Response({"message": "Added to cart"})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class RemoveFromCartView(APIView):
     """
-    Remove item from cart - CSRF exempt for authenticated users.
+    Remove cart item.
     """
     permission_classes = [IsAuthenticated]
 
@@ -74,10 +84,9 @@ class RemoveFromCartView(APIView):
         return Response({"message": "Removed"})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class UpdateCartQuantityView(APIView):
     """
-    Update cart item quantity - CSRF exempt for authenticated users.
+    Update cart item quantity.
     """
     permission_classes = [IsAuthenticated]
 
@@ -85,13 +94,36 @@ class UpdateCartQuantityView(APIView):
         quantity = request.data.get("quantity")
         if not quantity or quantity < 1:
             return Response({"error": "Invalid quantity"}, status=400)
+        
+        if quantity > 99:
+            return Response({"error": "Maximum quantity per item is 99"}, status=400)
 
         cart = get_user_cart(request.user)
         item = get_object_or_404(CartItem, id=item_id, cart=cart)
+        
+        # Check stock availability
+        if item.product.stock < quantity:
+            return Response(
+                {"error": f"Only {item.product.stock} item(s) available in stock."},
+                status=400
+            )
+        
         item.quantity = quantity
         item.save()
 
         return Response({"message": "Quantity updated"})
+
+
+class ClearCartView(APIView):
+    """
+    Clear all items from cart.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        cart = get_user_cart(request.user)
+        CartItem.objects.filter(cart=cart).delete()
+        return Response({"message": "Cart cleared successfully"})
 
 
 # ============================
@@ -105,10 +137,9 @@ class WishlistDetailView(APIView):
         return Response(WishlistSerializer(wishlist).data)
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class AddToWishlistView(APIView):
     """
-    Add product to wishlist - CSRF exempt for authenticated users.
+    Add to wishlist.
     """
     permission_classes = [IsAuthenticated]
 
@@ -127,10 +158,9 @@ class AddToWishlistView(APIView):
         return Response({"message": "Added to wishlist"})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class RemoveFromWishlistView(APIView):
     """
-    Remove item from wishlist - CSRF exempt for authenticated users.
+    Remove from wishlist.
     """
     permission_classes = [IsAuthenticated]
 

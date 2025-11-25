@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Cart, CartItem, Wishlist, WishlistItem
 from products.serializers import ProductSerializer
+from utils import validate_quantity_range
 
 
 # CART
@@ -13,8 +14,20 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class AddToCartSerializer(serializers.Serializer):
-    product_id = serializers.IntegerField()
-    quantity = serializers.IntegerField(default=1)
+    product_id = serializers.IntegerField(
+        error_messages={
+            'required': 'Product ID is required.',
+            'invalid': 'Product ID must be a valid integer.',
+        }
+    )
+    quantity = serializers.IntegerField(
+        default=1,
+        validators=[validate_quantity_range],
+        error_messages={
+            'required': 'Quantity is required.',
+            'invalid': 'Quantity must be a valid integer.',
+        }
+    )
 
 
 class CartSerializer(serializers.ModelSerializer):
