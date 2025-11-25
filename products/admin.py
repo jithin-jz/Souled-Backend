@@ -1,16 +1,13 @@
 from django.contrib import admin
-from django.utils.html import format_html
 from .models import Product
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category", "price", "stock", "image_tag", "created_at")
-    list_filter = ("category",)
+    list_display = ("name", "category", "price", "stock", "created_at")
+    list_filter = ("category", "created_at")
     search_fields = ("name", "description")
+    prepopulated_fields = {"slug": ("name",)}
     ordering = ("-created_at",)
 
-    def image_tag(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" style="max-width:80px; height:auto;" />', obj.image.url)
-        return "-"
-    image_tag.short_description = "Image"
+    readonly_fields = ("created_at", "updated_at")

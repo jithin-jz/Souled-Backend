@@ -25,6 +25,9 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+     'django_daisy',
+    'django.contrib.humanize',  # Required
+    
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -84,13 +87,12 @@ DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,
         conn_max_age=600,
-        ssl_require=True,
+        ssl_require=False if DEBUG else True,
     )
 }
 
 AUTH_USER_MODEL = "accounts.User"
 
-# Authentication backends - required for email-based authentication
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
@@ -118,32 +120,20 @@ SIMPLE_JWT = {
     "AUTH_COOKIE_REFRESH": "refresh",
 }
 
-# Cookie security settings for JWT authentication
-# These are referenced in accounts/views.py set_jwt_cookies()
-COOKIE_SECURE = False if DEBUG else True
-COOKIE_SAMESITE = "None" if not DEBUG else "Lax"
-
-# --- CORS + CSRF ---
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+# ======================
+# Local Cookie settings
+# ======================
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
-CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
-
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_NAME = "csrftoken"
-
-# ==============================
-#  FIXED COOKIE CROSS-SITE RULES
-# ==============================
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False if DEBUG else True
-CSRF_COOKIE_SECURE = False if DEBUG else True
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 X_FRAME_OPTIONS = "DENY"
 
-# --- Static ---
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
