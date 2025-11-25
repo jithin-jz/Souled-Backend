@@ -131,7 +131,7 @@ CSRF_COOKIE_SECURE = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
-
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 X_FRAME_OPTIONS = "DENY"
 
 STATIC_URL = "/static/"
