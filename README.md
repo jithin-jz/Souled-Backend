@@ -1,28 +1,59 @@
-# Store Backend (Django REST API)
+# Store Backend – Django REST API
 
-Modern e-commerce backend built with Django REST Framework. It provides JWT-authenticated user flows, catalog management, persistent carts and wishlists, order management, and Stripe-powered payments. Assets are stored on Cloudinary and the API is designed to be consumed by a SPA (default CORS origin is `http://localhost:5173`).
+Modern, cloud-ready e-commerce backend built with Django REST Framework. It powers catalog browsing, persistent carts and wishlists, and a Stripe-backed checkout pipeline, all secured by cookie-based JWT sessions. The API is optimized for SPA clients (default CORS origin `http://localhost:5173`) and stores media on Cloudinary.
 
 ---
 
-## Features
-- Custom email-based user model with cookie-stored JWT sessions (access + refresh) and Google One-Tap login.
-- Product catalog with search, category filter, price range filter, and slug generation plus a bulk import command that uploads product imagery to Cloudinary.
-- Authenticated cart & wishlist APIs with quantity controls and duplicate prevention.
-- Order pipeline supporting COD and Stripe Checkout, including webhook + fallback verification to keep order status in sync.
-- Configurable CORS, CSRF, Cloudinary storage, and Stripe credentials via `.env`.
+## Table of Contents
+- [Highlights](#highlights)
+- [System Architecture](#system-architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [API Surface](#api-surface)
+- [Stripe & Webhooks](#stripe--webhooks)
+- [Testing & Quality](#testing--quality)
+- [Deployment Checklist](#deployment-checklist)
+- [Roadmap](#roadmap)
+
+---
+
+## Highlights
+- Email-first custom user model with access + refresh JWT cookies managed via SimpleJWT and Google One-Tap login.
+- Product catalog with search, category, and price filters plus a bulk import command that pushes imagery to Cloudinary.
+- Authenticated cart & wishlist APIs with quantity controls, deduplication, and clear validation messaging.
+- Checkout pipeline supporting Cash on Delivery and Stripe Checkout, including webhook + fallback verification to keep order status in sync.
+- Opinionated security defaults: CSRF & CORS configuration, cookie authentication, and environment-driven secrets.
+
+---
+
+## System Architecture
+**Core services**
+- `accounts`: User model, JWT cookie authentication (`CookieJWTAuthentication`), Google login, and session helpers.
+- `products`: CRUD APIs, slug generation, and a management command (`import_products`) that hydrates the catalog from `products.json`.
+- `cart`: Cart and wishlist resources linked to authenticated users with quantity tracking.
+- `orders`: Order placement, address management, Stripe Checkout session creation, webhook handling, and fallback verification.
+- `store`: Global settings, middleware, URL router, and integration glue (CORS, Cloudinary, Stripe, SimpleJWT).
+
+**Request flow**
+1. Client authenticates via `/api/auth/login/` (or `register/` or `google/`), receiving JWT cookies.
+2. Subsequent requests include cookies (`credentials: 'include'`), allowing `CookieJWTAuthentication` to resolve the user.
+3. Shopping flows hit `products`, `cart`, and `wishlist` endpoints; the order payload is submitted to `/api/orders/create/`.
+4. Stripe webhooks call back into `/api/orders/webhook/` to finalize payment state; `verify-payment/` offers a manual fallback.
 
 ---
 
 ## Tech Stack
 - Python 3.11+, Django 5, Django REST Framework
-- SimpleJWT (cookie-based), django-cors-headers
-- Cloudinary & django-cloudinary-storage for media
-- Stripe Checkout API
-- PostgreSQL (configured via `DATABASE_URL`) – swapable with any Django-supported DB
+- SimpleJWT (cookie transport), `django-cors-headers`
+- Cloudinary via `django-cloudinary-storage`
+- Stripe Checkout + Webhooks
+- PostgreSQL (via `DATABASE_URL`, swapable with any Django-supported DB)
 
 ---
 
-## Project Layout
+## Project Structure
 ```
 store/           Django project (settings, urls, wsgi/asgi)
 accounts/        Custom user model + auth endpoints
@@ -36,13 +67,13 @@ products.json    Seed data used by import_products command
 
 ## Getting Started
 
-### 1. Prerequisites
+### Prerequisites
 - Python 3.11+
-- PostgreSQL (or adjust `DATABASE_URL` to SQLite for local experiments)
-- Cloudinary account & API keys
-- Stripe account + test keys
+- PostgreSQL (or swap `DATABASE_URL` to SQLite for local experiments)
+- Cloudinary account and API keys
+- Stripe account with test keys
 
-### 2. Setup
+### Installation
 ```bash
 git clone <repo-url>
 cd sBackend
@@ -51,8 +82,8 @@ source .venv/Scripts/activate        # PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 3. Environment Variables
-Create `.env` in the project root:
+### Environment Setup
+Create `.env` in the repo root:
 ```
 SECRET_KEY=django-secret
 DEBUG=True
@@ -71,85 +102,94 @@ GOOGLE_CLIENT_ID=<oauth-client-id>.apps.googleusercontent.com
 FRONTEND_URL=http://localhost:5173
 ```
 
-### 4. Database & Superuser
+### Database & Admin User
 ```bash
 python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 5. Seed Product Catalog (optional)
-`products/management/commands/import_products.py` pulls images, uploads to Cloudinary, and creates `Product` rows based on `products.json`.
+### (Optional) Import Sample Products
+`products/management/commands/import_products.py` reads `products.json`, uploads media to Cloudinary, and seeds the catalog.
 ```bash
 python manage.py import_products
 ```
 
-### 6. Run the API
+### Run the API
 ```bash
 python manage.py runserver
 ```
 
 ---
 
-## API Overview
+## Configuration
+- **Authentication**: SimpleJWT cookies (HttpOnly, per settings). Ensure the frontend sends requests with `credentials: 'include'`.
+- **CORS**: Managed via `django-cors-headers`; defaults to `http://localhost:5173`.
+- **Media**: Served from Cloudinary storage; requires the `CLOUDINARY_*` trio.
+- **Payments**: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` must be set. Webhooks expect INR by default but can be adapted in `orders`.
+- **Database**: Driven by `DATABASE_URL` (PostgreSQL recommended). Use Django-supported URLs to swap engines.
 
-### Auth (`/api/auth/`)
-- `POST register/` – create user and issue JWT cookies.
+---
+
+## API Surface
+**Auth (`/api/auth/`)**
+- `POST register/` – create user & issue JWT cookies.
 - `POST login/` – email/password login.
 - `POST google/` – Google ID token login.
-- `POST logout/` – clears access/refresh cookies.
-- `GET me/` – current user profile (requires auth).
+- `POST logout/` – clears cookies.
+- `GET me/` – current user profile (auth required).
 
-### Products (`/api/products/`)
-- `GET /` – list products with `search`, `category`, `min_price`, `max_price` query params.
-- `POST create/` – add product (admin/staff checks should be added in production).
-- `GET|PUT|PATCH|DELETE <pk>/` – retrieve or mutate a product.
+**Products (`/api/products/`)**
+- `GET /` – list products with `search`, `category`, `min_price`, `max_price`.
+- `POST create/` – create product (enforce staff-only in production).
+- `GET|PUT|PATCH|DELETE <pk>/` – manage a specific product.
 
-### Cart (`/api/cart/`)
-- `GET /` – fetch authenticated user cart with expanded product data.
-- `POST add/` – body `{product_id, quantity}`.
-- `PATCH update/<item_id>/` – update quantity.
+**Cart (`/api/cart/`)**
+- `GET /` – retrieve authenticated user cart with expanded product data.
+- `POST add/` – payload `{product_id, quantity}`.
+- `PATCH update/<item_id>/` – adjust quantity.
 - `DELETE remove/<item_id>/` – remove item.
 
-### Wishlist (`/api/cart/wishlist/`)
-- `GET /` – fetch wishlist.
-- `POST add/` – body `{product_id}`; duplicates return a friendly message.
+**Wishlist (`/api/cart/wishlist/`)**
+- `GET /`
+- `POST add/` – payload `{product_id}`; duplicates return a friendly message.
 - `DELETE remove/<item_id>/`
 
-### Orders (`/api/orders/`)
-- `POST create/` – payload includes `cart` (array of `{id,name,price,quantity}`), `address`, and `payment_method` (`cod` or `stripe`). Creates `Order`, `OrderItem`s, and either sets status to `processing` or returns a Stripe Checkout URL.
-- `GET verify-payment/?session_id=...` – fallback polling to confirm Stripe sessions.
-- `POST webhook/` – Stripe webhook endpoint; configure the CLI/dashboard to point to `/api/orders/webhook/`.
-- `GET my/` – list authenticated user orders with nested items and formatted timestamps.
-
-Authentication is enforced via `accounts.authentication.CookieJWTAuthentication`, which reads the `access` cookie SimpleJWT issues at login/registration. Ensure your frontend sends `credentials: 'include'` on fetch requests.
+**Orders (`/api/orders/`)**
+- `POST create/` – accepts cart snapshot, address, and `payment_method` (`cod` or `stripe`); returns either a processing order or Stripe Checkout URL.
+- `GET verify-payment/?session_id=...` – fallback poller for Stripe sessions.
+- `POST webhook/` – Stripe webhook entrypoint.
+- `GET my/` – authenticated user order history with nested items.
 
 ---
 
 ## Stripe & Webhooks
-1. Start a local tunnel (e.g., `stripe listen --forward-to localhost:8000/api/orders/webhook/`).
-2. Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
-3. Use the Checkout session URL returned by `order/create/` to complete test payments (default currency INR).
-4. Payment confirmation automatically updates order status via webhook; `verify-payment/` provides a manual fallback.
+1. Start a local tunnel: `stripe listen --forward-to localhost:8000/api/orders/webhook/`.
+2. Place the generated signing secret into `STRIPE_WEBHOOK_SECRET`.
+3. Complete checkout using the URL returned by `orders/create/` (test mode, INR).
+4. Successful payments trigger the webhook, which syncs order status; `verify-payment/` is available if the webhook is delayed.
 
 ---
 
-## Testing
-Run Django tests (each app ships with `tests.py` placeholders ready for expansion):
+## Testing & Quality
+Run Django’s test runner (apps ship with `tests.py` ready for expansion):
 ```bash
 python manage.py test
 ```
+Add coverage for cart mutations, order flows, and webhook edge cases as the project grows.
 
 ---
 
-## Deployment Notes
-- Set `DEBUG=False`, `CLOUDINARY_*`, Stripe keys, and `ALLOWED_HOSTS` correctly.
-- Use HTTPS so cookies can be `Secure` and `SameSite=None` if your frontend is on a different origin.
-- Production should switch `conn_max_age`/`ssl_require` for the target database and tighten CORS lists.
+## Deployment Checklist
+- Set `DEBUG=False`, tighten `ALLOWED_HOSTS`, and configure HTTPS so cookies can be `Secure` and `SameSite=None` when serving a different origin.
+- Provide production `DATABASE_URL`, `CLOUDINARY_*`, and Stripe keys.
+- Tune database settings (`CONN_MAX_AGE`, SSL) and restrict CORS origins.
+- Configure `CSRF_TRUSTED_ORIGINS` for hosted frontends.
+- Rotate webhook secrets when moving between environments.
 
 ---
 
-## Next Steps
-- Enforce staff-only access to product mutation endpoints.
+## Roadmap
+- Enforce staff-only access for product mutations.
 - Add rate limiting and email verification for new accounts.
-- Flesh out automated tests for cart, order, and webhook flows.
+- Expand automated test coverage for cart, order, and webhook flows.
 
