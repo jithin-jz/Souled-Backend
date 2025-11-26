@@ -31,8 +31,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
 
+    is_block = models.BooleanField(default=False)  # REQUIRED FIELD
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

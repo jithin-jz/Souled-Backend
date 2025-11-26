@@ -45,4 +45,9 @@ class CookieJWTAuthentication(JWTAuthentication):
             return None
 
         user = self.get_user(validated_token)
+        
+        # Check if user is blocked
+        if user and user.is_block:
+            raise exceptions.AuthenticationFailed("Your account has been blocked. Please contact support.")
+        
         return user, validated_token

@@ -135,6 +135,13 @@ class GoogleLoginView(APIView):
                 },
             )
 
+            # Check if user is blocked
+            if user.is_block:
+                return Response(
+                    {"detail": "Your account has been blocked. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             refresh = RefreshToken.for_user(user)
 
             response = Response(
@@ -180,6 +187,18 @@ class RefreshView(APIView):
 
         try:
             refresh = RefreshToken(refresh_token)
+            # Get the user from the refresh token to check if blocked
+            user_id = refresh.get('user_id')
+            try:
+                user = User.objects.get(id=user_id)
+                if user.is_block:
+                    response = Response({"detail": "Your account has been blocked"}, status=403)
+                    response.delete_cookie(AUTH_COOKIE_KEY, path="/")
+                    response.delete_cookie(REFRESH_COOKIE_KEY, path="/")
+                    return response
+            except User.DoesNotExist:
+                return Response({"detail": "User not found"}, status=401)
+            
             new_access = refresh.access_token
 
             secure = getattr(settings, "COOKIE_SECURE", False)

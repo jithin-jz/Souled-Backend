@@ -49,5 +49,10 @@ class LoginSerializer(serializers.Serializer):
                 code="authorization",
             )
 
+        # Check if user is blocked
+        if user.is_block:
+            from rest_framework.exceptions import AuthenticationFailed
+            raise AuthenticationFailed("Your account has been blocked. Please contact support.")
+
         attrs["user"] = user
         return attrs
