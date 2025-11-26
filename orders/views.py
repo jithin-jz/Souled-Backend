@@ -91,7 +91,8 @@ class CreateOrderAPIView(APIView):
                     address=address,
                     payment_method=payment_method,
                     total_amount=total_amount,
-                    status="pending",
+                    payment_status="unpaid",
+                    order_status="processing",
                 )
 
                 logger.info(f"Order {order.id} created for user {user.email}")
@@ -124,15 +125,16 @@ class CreateOrderAPIView(APIView):
 
                 # -------- COD LOGIC --------
                 if payment_method == "cod":
-                    order.status = "processing"
-                    order.save()
+                    # COD orders remain unpaid until delivery when payment is collected
+                    # Admin will manually mark as paid after receiving payment
                     logger.info(f"COD order {order.id} confirmed")
                     return Response(
                         {
                             "message": "COD order placed",
                             "order_id": order.id,
                             "payment_method": "cod",
-                            "status": "processing"
+                            "payment_status": "unpaid",
+                            "order_status": "processing"
                         },
                         status=200,
                     )
@@ -166,8 +168,7 @@ class CreateOrderAPIView(APIView):
                     
                 except Exception as e:
                     logger.error(f"Stripe error for order {order.id}: {str(e)}")
-                    order.status = "failed"
-                    order.save()
+                    # No status change needed - order remains unpaid/processing
                     return Response({"error": str(e)}, status=500)
 
         except Exception as e:
@@ -208,19 +209,21 @@ class VerifyPaymentAPIView(APIView):
         if order.payment_method == "cod":
             return Response({
                 "order_id": order.id,
-                "status": order.status,
+                "payment_status": order.payment_status,
+                "order_status": order.order_status,
                 "payment_verified": True
             })
 
         # -------- STRIPE LOGIC --------
-        if session.get("payment_status") == "paid" and order.status == "pending":
-            order.status = "paid"
+        if session.get("payment_status") == "paid" and order.payment_status == "unpaid":
+            order.payment_status = "paid"
             order.save()
             logger.info(f"Payment verified for order {order.id}")
 
         return Response({
             "order_id": order.id,
-            "status": order.status,
+            "payment_status": order.payment_status,
+            "order_status": order.order_status,
             "payment_verified": session.get("payment_status") == "paid",
         })
 
@@ -249,8 +252,8 @@ class StripeWebhookAPIView(APIView):
             order_id = session["metadata"].get("order_id")
 
             if order_id:
-                Order.objects.filter(id=order_id).update(status="paid")
-                logger.info(f"Webhook: Order {order_id} marked as paid")
+                Order.objects.filter(id=order_id).update(payment_status="paid")
+                logger.info(f"Webhook: Order {order_id} payment marked as paid")
 
         return Response({"status": "success"}, status=200)
 
@@ -266,3 +269,72 @@ class UserOrderListAPIView(ListAPIView):
         return Order.objects.filter(
             user=self.request.user
         ).select_related('address').prefetch_related('items__product').order_by("-created_at")
+
+
+# ======================================================================
+# ADMIN: FETCH ALL ORDERS
+# ======================================================================
+class AdminOrderListAPIView(ListAPIView):
+    """
+    Admin-only endpoint to fetch all orders.
+    """
+    from rest_framework.permissions import IsAdminUser
+    serializer_class = OrderSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        return Order.objects.all().select_related(
+            'address', 'user'
+        ).prefetch_related('items__product').order_by("-created_at")
+
+
+# ======================================================================
+# ADMIN: UPDATE ORDER STATUS
+# ======================================================================
+class UpdateOrderStatusAPIView(APIView):
+    """
+    Admin-only endpoint to update order status.
+    """
+    from rest_framework.permissions import IsAdminUser
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, order_id):
+        new_order_status = request.data.get("order_status", "").lower()
+        new_payment_status = request.data.get("payment_status", "").lower()
+
+        # Get order
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=404)
+
+        # Validate and update order status if provided
+        if new_order_status:
+            valid_order_statuses = [choice[0] for choice in Order.ORDER_STATUS_CHOICES]
+            if new_order_status not in valid_order_statuses:
+                return Response(
+                    {"error": f"Invalid order status. Must be one of: {', '.join(valid_order_statuses)}"},
+                    status=400
+                )
+            order.order_status = new_order_status
+            logger.info(f"Order {order.id} status updated to {new_order_status} by admin {request.user.email}")
+
+        # Validate and update payment status if provided
+        if new_payment_status:
+            valid_payment_statuses = [choice[0] for choice in Order.PAYMENT_STATUS_CHOICES]
+            if new_payment_status not in valid_payment_statuses:
+                return Response(
+                    {"error": f"Invalid payment status. Must be one of: {', '.join(valid_payment_statuses)}"},
+                    status=400
+                )
+            order.payment_status = new_payment_status
+            logger.info(f"Order {order.id} payment status updated to {new_payment_status} by admin {request.user.email}")
+
+        order.save()
+
+        # Return updated order
+        serializer = OrderSerializer(order)
+        return Response({
+            "message": "Order updated successfully",
+            "order": serializer.data
+        }, status=200)

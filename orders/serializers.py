@@ -49,7 +49,7 @@ class AddressSerializer(serializers.ModelSerializer):
         max_length=100,
         min_length=2,
         error_messages={
-'required': 'City is required.',
+            'required': 'City is required.',
             'min_length': 'City must be at least 2 characters.',
         }
     )
@@ -92,7 +92,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "items",
             "total_amount",
             "payment_method",
-            "status",
+            "payment_status",
+            "order_status",
             "stripe_session_id",
             "created_at",
         ]
@@ -100,7 +101,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "user",
             "address",
             "items",
-            "status",
+            "payment_status",
+            "order_status",
             "stripe_session_id",
             "created_at",
             "total_amount",  # Total amount should generally be calculated, not writable via API
