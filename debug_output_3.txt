@@ -1,0 +1,39 @@
+Traceback (most recent call last):
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\debug_serializers.py", line 25, in <module>
+    data = serializer.data
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 573, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 251, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 540, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 716, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 525, in to_representation
+    for field in fields:
+                 ^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 386, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 374, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 1081, in get_fields
+    field_names = self.get_field_names(declared_fields, info)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Jithi\Desktop\eCommerce\sBackend\.venv\Lib\site-packages\rest_framework\serializers.py", line 1153, in get_field_names
+    assert not (fields is None and exclude is None), (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ("Creating a ModelSerializer without either the 'fields' attribute or the 'exclude' attribute has been deprecated since 3.3.0, and is now disallowed. Add an explicit fields = '__all__' to the OrderItemSerializer serializer.",)
+Fetching last 5 orders...
+Found 5 orders.
+--- Serializing Order 84 ---
+FAILED to serialize Order 84

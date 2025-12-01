@@ -66,20 +66,34 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    # These fields correctly fetch product data for read-only display
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    image = serializers.CharField(source="product.image", read_only=True)
+    # Use SerializerMethodField to handle cases where product is None (deleted)
+    product_name = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    stock = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderItem
-        # Keep 'product' for internal use, but read-only for display
-        fields = ["id", "product", "product_name", "image", "quantity", "price"]
+        fields = ["id", "product", "product_name", "image", "quantity", "price", "category", "stock"]
         read_only_fields = ["product"]
+
+    def get_product_name(self, obj):
+        return obj.product.name if obj.product else "Product Unavailable"
+
+    def get_image(self, obj):
+        # Product.image is a URLField, so we just return it directly
+        return obj.product.image if obj.product else None
+
+    def get_category(self, obj):
+        return obj.product.category if obj.product else "N/A"
+
+    def get_stock(self, obj):
+        return obj.product.stock if obj.product else 0
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    # This ensures items are read correctly from the related_name (orderitem_set)
-    items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')
+    # This ensures items are read correctly from the related_name (items)
+    items = OrderItemSerializer(many=True, read_only=True)
     address = AddressSerializer(read_only=True)
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)  # Format for frontend
 

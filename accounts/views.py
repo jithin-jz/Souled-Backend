@@ -174,6 +174,7 @@ class LogoutView(APIView):
         return response
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class RefreshView(APIView):
     """
     Reads refresh cookie and issues a new access cookie.
