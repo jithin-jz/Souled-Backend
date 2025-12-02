@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django_ratelimit.decorators import ratelimit
 
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -56,10 +57,11 @@ def set_jwt_cookies(response, refresh: RefreshToken):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(ratelimit(key='ip', rate='3/h', method='POST'), name='dispatch')
 class RegisterView(APIView):
     """
     User registration - CSRF exempt since unauthenticated users
-    don't have CSRF tokens yet.
+    don't have CSRF tokens yet. Rate limited to 3 registrations per hour per IP.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -80,10 +82,11 @@ class RegisterView(APIView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(ratelimit(key='ip', rate='5/15m', method='POST'), name='dispatch')
 class LoginView(APIView):
     """
     User login - CSRF exempt since unauthenticated users
-    don't have CSRF tokens yet.
+    don't have CSRF tokens yet. Rate limited to 5 attempts per 15 minutes per IP.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -104,10 +107,11 @@ class LoginView(APIView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(ratelimit(key='ip', rate='5/15m', method='POST'), name='dispatch')
 class GoogleLoginView(APIView):
     """
     Google OAuth login - CSRF exempt since the id_token verification
-    provides sufficient security.
+    provides sufficient security. Rate limited to 5 attempts per 15 minutes per IP.
     """
     permission_classes = [permissions.AllowAny]
 

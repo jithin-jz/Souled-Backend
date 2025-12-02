@@ -1,5 +1,6 @@
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.filters import SearchFilter
+from rest_framework.permissions import IsAdminUser, AllowAny
 from django.db.models import Q
 from .models import Product
 from .serializers import ProductSerializer
@@ -33,8 +34,15 @@ class ProductListView(ListAPIView):
 class ProductCreateView(CreateAPIView):
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
+    permission_classes = [IsAdminUser]  # Only staff can create products
 
 
 class ProductDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
+    
+    def get_permissions(self):
+        # Allow anyone to view (GET), but only staff can update/delete
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdminUser()]
