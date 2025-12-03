@@ -36,8 +36,13 @@ jobs:
             # Navigate to project directory
             cd /home/ubuntu/backend/souled-backend
             
-            # Pull latest changes (will fail if not a git repo)
-            git pull origin main || echo "Git pull failed - please set up Git repository on EC2"
+            # Pull latest changes
+            if git pull origin main; then
+              echo "Git pull successful"
+            else
+              echo "Git pull failed - check repository setup"
+              exit 1
+            fi
             
             # Activate virtual environment
             source venv/bin/activate
