@@ -14,6 +14,8 @@ Complete guide to deploy Django backend on AWS EC2 (t2.micro) with Supabase Post
 
 **Total Cost**: $0/month (within free tier limits)
 
+Flow
+Client → Nginx → Your backend (Gunicorn, Uvicorn, etc) → Nginx → Client.
 ---
 
 ## Prerequisites
