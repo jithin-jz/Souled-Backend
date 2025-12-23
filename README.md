@@ -81,20 +81,23 @@ sBackend/
 
 ---
 
-## 🛡️ Security Features
+## ⚙️ Project Specifications
 
-| Feature | Implementation | benefit |
+| 🛡️ Security Features | 🛠️ Technology Stack | 📝 Environment Variables |
 | :--- | :--- | :--- |
-| **Rate Limiting** | `django-ratelimit` | Brute-force protection |
-| **Auth** | `SimpleJWT` + Cookies | XSS resistant sessions |
-| **Integrity** | `Django ORM` | Prevention of SQL Injection |
-| **Isolation** | `CORS Headers` | Controlled cross-origin access |
+| • **Rate Limiting**: `django-ratelimit` | • **Framework**: Django 5.2.8 | • `SECRET_KEY`: Django Key |
+| • **Auth**: `SimpleJWT` + Cookies | • **API Layer**: DRF 3.16.1 | • `DATABASE_URL`: Postgres Link |
+| • **Integrity**: `Django ORM` | • **Database**: PostgreSQL | • `CLOUDINARY_*`: Media API |
+| • **Isolation**: `CORS Headers` | • **Auth**: SimpleJWT & Google | • `STRIPE_*`: Payment Keys |
+| • **SQLi Protection**: Built-in ORM | • **Media**: Cloudinary | • `GOOGLE_CLIENT_ID`: OAuth |
+| • **XSS Resistance**: HttpOnly Cookies | • **Payments**: Stripe Checkout | • `DEBUG`: Dev/Prod Mode |
 
 ---
 
 ## 🚢 Deployment Ready
 
 ### Stack Recommendation
+
 - **Runtime**: Python 3.11 on Ubuntu
 - **Process Manager**: Gunicorn
 - **Reverse Proxy**: NGINX with SSL
@@ -103,32 +106,6 @@ sBackend/
 
 > [!CAUTION]
 > Always run `python manage.py check --deploy` before pushing to production to ensure all security settings are correctly configured.
-
----
-
-## 🛠️ Technology Stack
-
-| Component | Technology |
-| :--- | :--- |
-| **Backend Framework** | Django 5.2.8 |
-| **API Layer** | Django REST Framework 3.16.1 |
-| **Database** | PostgreSQL |
-| **Authentication** | SimpleJWT & Google OAuth |
-| **Media Storage** | Cloudinary |
-| **Payment Gateway** | Stripe Checkout |
-
----
-
-## 📝 Environment Variables
-
-| Variable | Required | Description |
-| :--- | :---: | :--- |
-| `SECRET_KEY` | ✅ | Django cryptographic signing key |
-| `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `CLOUDINARY_*` | ✅ | Cloudinary API credentials |
-| `STRIPE_*` | ✅ | Stripe secret and webhook keys |
-| `GOOGLE_CLIENT_ID`| ✅ | Google OAuth credentials |
-| `DEBUG` | ❌ | Set to `False` in production |
 
 ---
 
