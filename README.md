@@ -11,7 +11,6 @@
 
 **A production-ready infrastructure** featuring JWT authentication, Stripe payment integration, and cloud-optimized media storage.
 
-[Features](#-key-capabilities) • [Deployment](#-deployment-ready) • [Tech Stack](#-technology-stack)
 
 </div>
 
