@@ -116,8 +116,11 @@ This project is licensed under the **MIT License**.
 
 <div align="center">
 
-**Built with ❤️ by [JITHIN](https://github.com/jithin-jz)**
+<sub>Built with ❤️ by **JITHIN**</sub>
 
-If you found this helpful, give it a ⭐!
+<br/>
+
+[![GitHub stars](https://img.shields.io/github/stars/jithin-jz/souled-sBackend?style=social)](https://github.com/jithin-jz/souled-sBackend)
+[![GitHub forks](https://img.shields.io/github/forks/jithin-jz/souled-sBackend?style=social)](https://github.com/jithin-jz/souled-sBackend/fork)
 
 </div>
