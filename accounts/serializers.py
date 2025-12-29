@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from .models import Notification
+# from .models import Notification
 
 User = get_user_model()
 
@@ -59,7 +59,7 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = ("id", "message", "is_read", "created_at")
+# class NotificationSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Notification
+#         fields = ("id", "message", "is_read", "created_at")

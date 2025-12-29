@@ -14,8 +14,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, NotificationSerializer
-from .models import Notification
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
+# ,NotificationSerializer
+# from .models import Notification
 
 User = get_user_model()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -196,39 +197,39 @@ class MeView(APIView):
         )
 
 
-class ProfileUpdateView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+# class ProfileUpdateView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request):
-        user = request.user
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class NotificationListAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        notifications = request.user.notifications.all()
-        serializer = NotificationSerializer(notifications, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+#     def patch(self, request):
+#         user = request.user
+#         serializer = UserSerializer(user, data=request.data, partial=True)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MarkNotificationReadAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+# class NotificationListAPIView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, pk):
-        try:
-            notification = request.user.notifications.get(pk=pk)
-            notification.is_read = True
-            notification.save()
-            return Response({"message": "Marked as read"}, status=status.HTTP_200_OK)
-        except Notification.DoesNotExist:
-            return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+#     def get(self, request):
+#         notifications = request.user.notifications.all()
+#         serializer = NotificationSerializer(notifications, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-def create_notification(user, message):
-    Notification.objects.create(user=user, message=message)
+# class MarkNotificationReadAPIView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def post(self, request, pk):
+#         try:
+#             notification = request.user.notifications.get(pk=pk)
+#             notification.is_read = True
+#             notification.save()
+#             return Response({"message": "Marked as read"}, status=status.HTTP_200_OK)
+#         except Notification.DoesNotExist:
+#             return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+# def create_notification(user, message):
+#     Notification.objects.create(user=user, message=message)
