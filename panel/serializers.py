@@ -52,7 +52,7 @@ class AdminUserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "role", "isBlock"]
+        fields = ["id", "email", "name", "picture", "role", "isBlock"]
 
     def get_name(self, obj):
         full = f"{obj.first_name} {obj.last_name}".strip()
