@@ -158,7 +158,7 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if 
 
 # Add production frontend URL
 CORS_ALLOWED_ORIGINS.extend([
-    "https://souled-frontend.vercel.app",
+    "https://souled.jithin.site",
 ])
 
 csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
@@ -168,7 +168,7 @@ CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(",") if 
 CSRF_TRUSTED_ORIGINS.extend([
     "https://souled-api.duckdns.org",
     "http://souled-api.duckdns.org",
-    "https://souled-frontend.vercel.app",
+    "https://souled.jithin.site",
 ])
 
 # Trust X-Forwarded-Proto header from Nginx for HTTPS detection
